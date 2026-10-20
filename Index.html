@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow | Gerenciador de tarefas</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1120;
+      color: #e5e7eb;
+      min-height: 100vh;
+    }
+    header {
+      padding: 24px 8%;
+      border-bottom: 1px solid #263247;
+      background: #111a2e;
+    }
+    header h1 { margin: 0; color: #60a5fa; }
+    header p { color: #94a3b8; margin-bottom: 0; }
+    main { max-width: 850px; margin: 40px auto; padding: 0 20px; }
+    .panel {
+      background: #111a2e;
+      border: 1px solid #263247;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 22px;
+    }
+    h2 { margin-top: 0; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .stat {
+      background: #18243b;
+      padding: 16px;
+      border-radius: 12px;
+    }
+    .stat span { display: block; color: #94a3b8; font-size: 13px; }
+    .stat strong { display: block; font-size: 26px; margin-top: 8px; }
+    form { display: flex; gap: 10px; }
+    input {
+      flex: 1;
+      min-width: 0;
+      padding: 13px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0b1120;
+      color: white;
+      font-size: 15px;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .add { background: #3b82f6; color: white; }
+    .filters { display: flex; gap: 8px; margin: 18px 0; flex-wrap: wrap; }
+    .filter { background: #263247; color: #cbd5e1; }
+    .filter.active { background: #3b82f6; color: white; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid #263247;
+      overflow-wrap: anywhere;
+    }
+    li:last-child { border-bottom: 0; }
+    li input { flex: 0 0 18px; width: 18px; height: 18px; }
+    li span { flex: 1; }
+    li.done span { text-decoration: line-through; color: #64748b; }
+    .delete { background: #3a1e2b; color: #fca5a5; }
+    #empty { color: #94a3b8; text-align: center; padding: 20px 0; }
+    footer { text-align: center; color: #64748b; padding: 20px; }
+    @media (max-width: 500px) {
+      header { padding: 20px; }
+      main { margin-top: 24px; }
+      .panel { padding: 18px; }
+      form { flex-direction: column; }
+      .stats { gap: 8px; }
+      .stat { padding: 12px 8px; }
+      .stat strong { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TaskFlow.</h1>
+    <p>Organize suas tarefas. Conquiste seus objetivos.</p>
+  </header>
+
+  <main>
+    <section class="stats">
+      <div class="stat"><span>Total</span><strong id="total">0</strong></div>
+      <div class="stat"><span>Pendentes</span><strong id="pending">0</strong></div>
+      <div class="stat"><span>Concluídas</span><strong id="completed">0</strong></div>
+    </section>
+
+    <section class="panel">
+      <h2>Minhas tarefas</h2>
+      <form id="task-form">
+        <input id="task-input" type="text" placeholder="Ex.: Estudar JavaScript" maxlength="120" required>
+        <button class="add" type="submit">+ Adicionar</button>
+      </form>
+      <div class="filters">
+        <button class="filter active" data-filter="all">Todas</button>
+        <button class="filter" data-filter="pending">Pendentes</button>
+        <button class="filter" data-filter="completed">Concluídas</button>
+      </div>
+      <ul id="task-list"></ul>
+      <p id="empty">Nenhuma tarefa por aqui. Adicione a primeira!</p>
+    </section>
+  </main>
+
+  <footer>TaskFlow © 2026 · Feito para organizar seu dia.</footer>
+
+  <script>
+    const form = document.querySelector("#task-form");
+    const input = document.querySelector("#task-input");
+    const list = document.querySelector("#task-list");
+    const empty = document.querySelector("#empty");
+    let tasks = JSON.parse(localStorage.getItem("taskflow-tasks") || "[]");
+    let currentFilter = "all";
+
+    function saveTasks() {
+      localStorage.setItem("taskflow-tasks", JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      list.innerHTML = "";
+      const visibleTasks = tasks.filter(task =>
+        currentFilter === "all" ||
+        (currentFilter === "pending" && !task.completed) ||
+        (currentFilter === "completed" && task.completed)
+      );
+
+      visibleTasks.forEach(task => {
+        const li = document.createElement("li");
+        if (task.completed) li.classList.add("done");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.completed;
+        checkbox.setAttribute("aria-label", "Marcar tarefa como concluída");
+        checkbox.addEventListener("change", () => {
+          task.completed = checkbox.checked;
+          saveTasks();
+          renderTasks();
+        });
+
+        const text = document.createElement("span");
+        text.textContent = task.text;
+
+        const remove = document.createElement("button");
+        remove.className = "delete";
+        remove.textContent = "Excluir";
+        remove.addEventListener("click", () => {
+          tasks = tasks.filter(item => item.id !== task.id);
+          saveTasks();
+          renderTasks();
+        });
+
+        li.append(checkbox, text, remove);
+        list.appendChild(li);
+      });
+
+      document.querySelector("#total").textContent = tasks.length;
+      document.querySelector("#pending").textContent =
+        tasks.filter(task => !task.completed).length;
+      document.querySelector("#completed").textContent =
+        tasks.filter(task => task.completed).length;
+
+      empty.hidden = visibleTasks.length > 0;
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      tasks.push({
+        id: Date.now(),
+        text,
+        completed: false
+      });
+
+      saveTasks();
+      input.value = "";
+      renderTasks();
+      input.focus();
+    });
+
+    document.querySelectorAll(".filter").forEach(button => {
+      button.addEventListener("click", () => {
+        currentFilter = button.dataset.filter;
+        document.querySelectorAll(".filter").forEach(item =>
+          item.classList.toggle("active", item === button)
+        );
+        renderTasks();
+      });
+    });
+
+    renderTasks();
+  </script>
+</body>
+</html>
